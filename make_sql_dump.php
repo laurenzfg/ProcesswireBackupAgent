@@ -47,11 +47,11 @@ function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
 }
 
 function delete_backup_files ($filenamePrefix) {
-    $dumpname = $filenamePrefix . '_sqldump.sql.gz';
-    $sitetarname = $filenamePrefix . '_site.tgz';
+    $dumpname = '../../' . $filenamePrefix . '_sqldump.sql.gz';
+    $sitetarname = '../../' . $filenamePrefix . '_site.tgz';
 
-    unlink('../../' . $dumpname);
-    unlink('../../' . $sitetarname);
+    unlink($dumpname);
+    unlink($sitetarname);
 }
 
 $retval = make_backup_files($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, $mysqlPassword, $prefix);
