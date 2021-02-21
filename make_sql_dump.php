@@ -46,11 +46,21 @@ function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
 
 }
 
+function delete_backup_files ($filenamePrefix) {
+    $dumpname = $filenamePrefix . '_sqldump.sql.gz';
+    $sitetarname = $filenamePrefix . '_site.tgz';
+
+    unlink('../../' . $dumpname);
+    unlink('../../' . $sitetarname);
+}
+
 $retval = make_backup_files($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, $mysqlPassword, $prefix);
 if ($retval == 0) {
     echo 'Backup completed.'. PHP_EOL;
 } else {
     echo 'Backup unsuccessful.'. PHP_EOL;
 }
+
+delete_backup_files($prefix);
 
 ?>
