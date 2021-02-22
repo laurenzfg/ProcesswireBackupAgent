@@ -10,6 +10,7 @@ use Aws\Exception\AwsException;
 use Aws\S3\MultipartUploader;
 
 ini_set('max_execution_time', 300);
+header('Cache-Control: no-cache, must-revalidate, max-age=0');
 
 function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, $mysqlPassword, $filenamePrefix) {
     $dumpname = $filenamePrefix . '_sqldump.sql';
@@ -82,7 +83,7 @@ function perform_aws_multipart_upload ($s3Client, $awsBucketName, $s3filename, $
         try {
             $result = $uploader->upload();
             if ($result["@metadata"]["statusCode"] == '200') {
-                print('<p>File ' . $s3filename . ' uploaded to AWS S3.');
+                print('File ' . $s3filename . ' uploaded to AWS S3.' . PHP_EOL);
             }
         } catch (MultipartUploadException $e) {
             rewind($source);
@@ -99,6 +100,20 @@ function delete_backup_files ($filenamePrefix) {
 
     unlink($dumpname);
     unlink($sitetarname);
+}
+
+// HTTP Basic Auth to prevent abuse
+$has_supplied_credentials = !(empty($_SERVER['PHP_AUTH_USER']) && empty($_SERVER['PHP_AUTH_PW']));
+
+$is_not_authenticated = (
+    !$has_supplied_credentials ||
+    $_SERVER['PHP_AUTH_USER'] != "backup" ||
+    $_SERVER['PHP_AUTH_PW']   != $backupPassword
+);
+if ($is_not_authenticated) {
+    header('HTTP/1.1 401 Authorization Required');
+    header('WWW-Authenticate: Basic realm="Access denied"');
+    exit;
 }
 
 // Choose UNIX time as the prefix for all files

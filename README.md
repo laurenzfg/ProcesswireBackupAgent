@@ -23,6 +23,17 @@ Once the main backup script is invoked, both the SQL dump and the compressed sit
 are saved to the root.
 To make this script portable, it must allow other folder arrangements.
 
+## Authentification
+
+To prevent that an adversary just does backups all the time,
+we need to authorize the backup starting process.
+For simplicity, this is done with HTTP Basic Auth.
+The user must be set to 'backup'.
+The password is set in secrets.php
+
+Note that the whole process is led ad absurdum if the backup is not triggered
+via HTTPS.
+
 ## Amazon S3
 
 This backup agent uses Amazon (TM) S3 as the backupt target.
