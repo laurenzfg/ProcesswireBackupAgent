@@ -1,0 +1,119 @@
+<?php
+
+require_once 'vendor/autoload.php';
+
+// DB and AWS credentials are saved there
+require_once 'secrets.php';
+
+use Aws\S3\S3Client;
+use Aws\Exception\AwsException;
+use Aws\S3\MultipartUploader;
+
+ini_set('max_execution_time', 300);
+
+function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, $mysqlPassword, $filenamePrefix) {
+    $dumpname = $filenamePrefix . '_sqldump.sql';
+    $sitetarname = $filenamePrefix . '_site.tgz';
+    
+    // Call to the system's mysqldump util
+    $command='mysqldump --opt -h' .$mysqlHostName .' -u' .$mysqlUserName .' -p' .$mysqlPassword .' ' .$mysqlDatabaseName .' > ../../' . $dumpname;
+    exec($command,$output=array(),$worked);
+    switch($worked) { // check return code
+        case 1:
+            echo 'Could not make SQL dump'. PHP_EOL;
+            return -1;
+            break;
+        case 2:
+            echo 'Could not make SQL dump due to DB connection issues.'. PHP_EOL;
+            return -1;
+            break;
+    }
+
+    // Gzip the SQL dump cause SQL dumps are just a long sequence of SQL statements
+    // that is very inefficent. GZIP can help us a lot!
+    // SIDE EFFECT: gzip removes the (uncompressed) file! Remainder: {filename}.gz
+    exec('gzip -f ../../'.$dumpname,$output=array(),$worked);
+    if ($worked > 0) { // check return code
+        echo 'Could not compress SQL dump'. PHP_EOL;
+        return -1;
+    }
+
+    // Assets etc. are saved in the 'site' folder
+    // We make a GZIP compressed tar of everything
+    exec('tar -zvc -C ../ -f ../../' . $sitetarname . ' site',$output=array(),$worked);
+    if ($worked > 0) { // check return code
+        echo 'Could not make site folder dump'. PHP_EOL;
+        return -1;
+    }
+    return 0;
+
+}
+
+function upload_to_aws ($s3Client, $awsBucketName, $filenamePrefix) {
+    $dumpfilename = $filenamePrefix . '_sqldump.sql.gz';
+    $sitetarfilename = $filenamePrefix . '_site.tgz';
+
+    $dumpname = '../../' . $dumpfilename;
+    $sitetarname = '../../' . $sitetarfilename;
+
+    $dumpstream = fopen($dumpname, 'rb');
+    $sitetarstream = fopen($sitetarname, 'rb');
+
+    perform_aws_multipart_upload($s3Client, $awsBucketName, $dumpfilename, $dumpstream);
+    perform_aws_multipart_upload($s3Client, $awsBucketName, $sitetarfilename, $sitetarstream);
+
+    fclose($dumpstream);
+    fclose($sitetarstream);
+}
+
+function perform_aws_multipart_upload ($s3Client, $awsBucketName, $s3filename, $sourcestream) {
+    // We'll use the more robust AWS Multipart uploader.
+    // Therefore, we need stateful uploader objects
+
+    $uploader = new MultipartUploader($s3Client, $sourcestream, [
+        'bucket' => $awsBucketName,
+        'key' => $s3filename, // name in AWS
+        'before_initiate' => function(\Aws\CommandInterface $command) {
+            $command['StorageClass'] = 'STANDARD_IA'; //storage class
+        }
+    ]);
+   
+    do {
+        try {
+            $result = $uploader->upload();
+            if ($result["@metadata"]["statusCode"] == '200') {
+                print('<p>File ' . $s3filename . ' uploaded to AWS S3.');
+            }
+        } catch (MultipartUploadException $e) {
+            rewind($source);
+            $uploader = new MultipartUploader($s3Client, $sourcestream, [
+                'state' => $e->getState(),
+            ]);
+        }
+    } while (!isset($result));
+}
+
+function delete_backup_files ($filenamePrefix) {
+    $dumpname = '../../' . $filenamePrefix . '_sqldump.sql.gz';
+    $sitetarname = '../../' . $filenamePrefix . '_site.tgz';
+
+    unlink($dumpname);
+    unlink($sitetarname);
+}
+
+// Choose UNIX time as the prefix for all files
+$prefix = time();
+
+$retval = make_backup_files($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, $mysqlPassword, $prefix);
+if ($retval == 0) {
+    echo 'Backup file creation completed.'. PHP_EOL;
+} else {
+    echo 'Backup file creation unsuccessful.'. PHP_EOL;
+    die();
+}
+
+upload_to_aws($s3Client, $awsBucketName, $prefix);
+
+delete_backup_files($prefix);
+
+?>
