@@ -1,5 +1,21 @@
 # ProcesswireBackupAgent
+
 A script which backs up ProcessWire and uploads the backup to Amazon (TM) S3.
+It assumes that ProcessWire runs on a shared web space (the whole project is a little bit legacy-esque)
+and the backup shall be saved on Amazon AWS (TM).
+This project is divided into two sub-components.
+
+The first component is the Shared Webspace Backup Agent.
+This is a PHP script which compresses the site/ folder into a tar, makes a dump
+of the MySQl Database and uploads both archives into an Amazon S3 Bucket.
+
+The second component is a Serverless Application, the Housekeeping App.
+It is developed under the [Amazon (TM) Serverless Application Model](https://github.com/aws/serverless-application-model).
+This creates a CloudFormation which runs a Lambda periodically.
+This Lambda invokes the Shared Webspace Backup Agent
+and removes old backups.
+
+## Shared Webspace Backup Agent
 
 The backup agent can be used on a PHP host which allows mysqldump to be run
 through a call to PHP's exec.
