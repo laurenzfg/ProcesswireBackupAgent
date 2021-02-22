@@ -124,6 +124,7 @@ if ($retval == 0) {
     echo 'Backup file creation completed.'. PHP_EOL;
 } else {
     echo 'Backup file creation unsuccessful.'. PHP_EOL;
+    http_response_code(500);
     die();
 }
 
