@@ -115,5 +115,4 @@ The policy might grant to many permissions, this is my AWS starter project.
 ## Todos
 
  - Currently, a lot like e.g. file names in the shared webspace component is hardcoded.
- - We need to make sure that error is returned if upload to s3 fails by the PHP
- - We need to make the scripts in AWS fail when they fail and NOT just return 500. Because nobody checks for this value. We need to throw an exception instead of just returning 500.
+ - We need to enable that error is returned if upload to s3 fails by the PHP. We also need to unroll everything and delete e.g. one file in S3 if just one of the two uploads failed.

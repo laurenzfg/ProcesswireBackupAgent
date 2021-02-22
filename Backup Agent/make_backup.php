@@ -98,8 +98,11 @@ function delete_backup_files ($filenamePrefix) {
     $dumpname = '../../' . $filenamePrefix . '_sqldump.sql.gz';
     $sitetarname = '../../' . $filenamePrefix . '_site.tgz';
 
+    // to make sure there are no dangling files, try to delete uncompressed dump
     unlink($dumpname);
     unlink($sitetarname);
+    // Todo: Check if file exists instead of just surpressing the error
+    @unlink('../../' . $filenamePrefix . '_sqldump.sql'); // Don't want to see an error every time
 }
 
 // HTTP Basic Auth to prevent abuse
@@ -123,8 +126,9 @@ $retval = make_backup_files($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
 if ($retval == 0) {
     echo 'Backup file creation completed.'. PHP_EOL;
 } else {
-    echo 'Backup file creation unsuccessful.'. PHP_EOL;
     http_response_code(500);
+    echo 'Backup file creation unsuccessful.'. PHP_EOL;
+    delete_backup_files($prefix); // remove dangling files
     die();
 }
 
