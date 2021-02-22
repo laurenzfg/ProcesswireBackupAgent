@@ -9,11 +9,20 @@ The first component is the Shared Webspace Backup Agent.
 This is a PHP script which compresses the site/ folder into a tar, makes a dump
 of the MySQl Database and uploads both archives into an Amazon S3 Bucket.
 
-The second component is a Serverless Application, the Housekeeping App.
-It is developed under the [Amazon (TM) Serverless Application Model](https://github.com/aws/serverless-application-model).
-This creates a CloudFormation which runs a Lambda periodically.
-This Lambda invokes the Shared Webspace Backup Agent
-and removes old backups.
+The second component is a Serverless Application, the Housekeeping App. The app is developed on the Node.js 14.x platform. This unfortunately means we still use AWS SDK v2.
+It consists of two lambdas:
+
+ - BackupInvoker: This Lambda invokes the Shared Webspace Backup Agent. You can call it
+   e.g. fortnightly via Amazon EventBridge.
+   You need to set the environment variables BACKUP_PW with the password to trigger the Shared Webspace Backup Agent
+   and BACKUP_URL pointing to the make_backup.php of the Shared Webspace Backup Agent.
+ - BackupHousekeeper: This lambda discards old backups. You can call it upon success from BackupInvoker. The lambda assumes to be in the same AWS region as the bucket.
+ You need to set the environment variables BUCKET_NAME and BACKUPS_TO_RETAIN respectively. The latter must be an integer.
+ **Note**: The algorithm is sorting all the files and remove the (N-2\*retain) oldest files *by filename prefix*. So don't have alien files in the bucket. You are warned :-).
+   
+Although I am German, I gave zero fucks about Umlauts and everything else in UTF-8. So keep everything ASCII :-).
+The Housekeeper will break if you have more than 500 backups due to pagination in the AWS API.
+So don't be _unordentlich_.
 
 ## Shared Webspace Backup Agent
 
@@ -99,3 +108,12 @@ The policy might grant to many permissions, this is my AWS starter project.
         }
     ]
     }
+
+## Housekeeping App
+
+
+## Todos
+
+ - Currently, a lot like e.g. file names in the shared webspace component is hardcoded.
+ - We need to make sure that error is returned if upload to s3 fails by the PHP
+ - We need to make the scripts in AWS fail when they fail and NOT just return 500. Because nobody checks for this value. We need to throw an exception instead of just returning 500.
