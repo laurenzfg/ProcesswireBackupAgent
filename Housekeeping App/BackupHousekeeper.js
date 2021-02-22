@@ -8,14 +8,14 @@ exports.handler = async (event, context) => {
     
     let retain = Number(process.env.BACKUPS_TO_RETAIN);
     
+    // If the Promise is rejected, the error is escalated one way up and aws
+    // recognizes this as failed
     const response = await new Promise((resolve, reject) => {
         s3.listObjects(bucketParams, function(err, data) {
             if (err) {
-                console.error("Error fetching files", err);
-                resolve ({
-                    statusCode: 500,
-                    body: 'Housekeeper no good'
-                });
+                console.error("Error fetching files from S3", err);
+                // Answer the promise
+                reject('Could not do the housekeeping');
             } else {
                 let keys = [];
                 data.Contents.forEach((element) => {
@@ -33,8 +33,6 @@ exports.handler = async (event, context) => {
                         Quiet: false
                     }
                 };
-
-                console.log(purge_params);
                 
                 if (keys.length - 2*retain > 0 ) {
                     for (let i = 0; i < keys.length - 2*retain; i++) {
@@ -42,25 +40,25 @@ exports.handler = async (event, context) => {
                         purge_params.Delete.Objects.push(key);
                     }
                     
-                    console.log(JSON.stringify(purge_params));
-                    
                     s3.deleteObjects(purge_params, function(err, data) {
                         if (err) {
-                            console.error(err, err.stack);
-                            resolve ({
-                                statusCode: 500,
-                                body: 'Housekeeper no good'
-                            });
+                            console.error("Error during S3 delete request", err);
+                            // Answer the promise
+                            reject('Could not do the housekeeping');
                         } else {
+                            console.log("Purging Protocol: " + JSON.stringify(data));
                             resolve ({
                                 statusCode: 200,
-                                body: 'Housekeeper all good'
+                                body: 'Housekeeping all good'
                             });
-                            console.log(data);
                         }
                    });
                 } else {
-                    console.log("Nothing to purge");   
+                    console.log("Nothing to purge");
+                    resolve ({
+                        statusCode: 200,
+                        body: 'House was clean already'
+                    });
                 }
                 
             }
