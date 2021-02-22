@@ -21,10 +21,12 @@ function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
     exec($command,$output=array(),$worked);
     switch($worked) { // check return code
         case 1:
+            http_response_code(500);
             echo 'Could not make SQL dump'. PHP_EOL;
             return -1;
             break;
         case 2:
+            http_response_code(500);
             echo 'Could not make SQL dump due to DB connection issues.'. PHP_EOL;
             return -1;
             break;
@@ -35,6 +37,7 @@ function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
     // SIDE EFFECT: gzip removes the (uncompressed) file! Remainder: {filename}.gz
     exec('gzip -f ../../'.$dumpname,$output=array(),$worked);
     if ($worked > 0) { // check return code
+        http_response_code(500);
         echo 'Could not compress SQL dump'. PHP_EOL;
         return -1;
     }
@@ -43,6 +46,7 @@ function make_backup_files ($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
     // We make a GZIP compressed tar of everything
     exec('tar -zvc -C ../ -f ../../' . $sitetarname . ' site',$output=array(),$worked);
     if ($worked > 0) { // check return code
+        http_response_code(500);
         echo 'Could not make site folder dump'. PHP_EOL;
         return -1;
     }
@@ -126,7 +130,6 @@ $retval = make_backup_files($mysqlHostName, $mysqlDatabaseName, $mysqlUserName, 
 if ($retval == 0) {
     echo 'Backup file creation completed.'. PHP_EOL;
 } else {
-    http_response_code(500);
     echo 'Backup file creation unsuccessful.'. PHP_EOL;
     delete_backup_files($prefix); // remove dangling files
     die();
